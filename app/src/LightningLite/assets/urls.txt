@@ -1,0 +1,3 @@
+# please use the java regex rule
+http://www.dnvod.tv/upload/gaming.*
+http://static.dnvod.tv/upload/gaming.*

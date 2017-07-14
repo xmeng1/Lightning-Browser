@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -42,8 +43,10 @@ public class AdBlock {
     private static final String TAB = "\t";
     private static final String SPACE = " ";
     private static final String EMPTY = "";
+    private static final String BLOCKED_URLS_LIST_FILE_NAME = "urls.txt";
 
     @NonNull private final Set<String> mBlockedDomainsList = new HashSet<>();
+    @NonNull private final Set<String> mBlockedUrlsList = new HashSet<>();
     @NonNull private final PreferenceManager mPreferenceManager;
     @NonNull private final Application mApplication;
     private boolean mBlockAds;
@@ -54,6 +57,9 @@ public class AdBlock {
         mPreferenceManager = preferenceManager;
         if (mBlockedDomainsList.isEmpty() && BuildConfig.FULL_VERSION) {
             loadHostsFile().subscribeOn(Schedulers.io()).subscribe();
+        }
+        if (mBlockedUrlsList.isEmpty() && BuildConfig.FULL_VERSION) {
+            loadUrlsFile().subscribeOn(Schedulers.io()).subscribe();
         }
         mBlockAds = mPreferenceManager.getAdBlockEnabled();
     }
@@ -86,6 +92,21 @@ public class AdBlock {
         if (isOnBlacklist) {
             Log.d(TAG, "URL '" + url + "' is an ad");
         }
+
+        //if the url is not recognized as ad by domain, try match with url rules
+        if (!isOnBlacklist) {
+            for (String s : mBlockedUrlsList) {
+                Log.d(TAG, "Pattern: " + s);
+                if (Pattern.matches(s,url)){
+                    //match and set the is as true and break
+                    Log.d(TAG, "Find matched URL: " + url);
+                    isOnBlacklist = true;
+                    break;
+                }
+            }
+        }
+
+
         return isOnBlacklist;
     }
 
@@ -150,6 +171,42 @@ public class AdBlock {
                 } catch (IOException e) {
                     Log.wtf(TAG, "Reading blocked domains list from file '"
                         + BLOCKED_DOMAINS_LIST_FILE_NAME + "' failed.", e);
+                } finally {
+                    Utils.close(reader);
+                }
+            }
+        });
+    }
+
+    @NonNull
+    private Completable loadUrlsFile() {
+        return Completable.create(new CompletableAction() {
+            @Override
+            public void onSubscribe(@NonNull CompletableSubscriber subscriber) {
+                AssetManager asset = mApplication.getAssets();
+                BufferedReader reader = null;
+                //noinspection TryFinallyCanBeTryWithResources
+                try {
+                    reader = new BufferedReader(new InputStreamReader(
+                            asset.open(BLOCKED_URLS_LIST_FILE_NAME)));
+                    StringBuilder lineBuilder = new StringBuilder();
+                    String line;
+                    long time = System.currentTimeMillis();
+
+                    final List<String> domains = new ArrayList<>(1);
+
+                    while ((line = reader.readLine()) != null) {
+                        lineBuilder.append(line);
+
+                        parseString(lineBuilder, domains);
+                        lineBuilder.setLength(0);
+                    }
+
+                    mBlockedUrlsList.addAll(domains);
+                    Log.d(TAG, "Loaded ad list in: " + (System.currentTimeMillis() - time) + " ms");
+                } catch (IOException e) {
+                    Log.wtf(TAG, "Reading blocked url list from file '"
+                            + BLOCKED_URLS_LIST_FILE_NAME + "' failed.", e);
                 } finally {
                     Utils.close(reader);
                 }
