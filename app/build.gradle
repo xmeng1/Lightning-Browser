@@ -40,7 +40,7 @@ android {
         }
 
         lightningLite {
-            buildConfigField "boolean", "FULL_VERSION", "Boolean.parseBoolean(\"false\")"
+            buildConfigField "boolean", "FULL_VERSION", "Boolean.parseBoolean(\"true\")"
             applicationId "acr.browser.barebones"
             versionCode project.versionCode_lite
         }
