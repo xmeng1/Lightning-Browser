@@ -185,7 +185,6 @@ public abstract class BrowserActivity extends ThemableBrowserActivity implements
     private int mCurrentUiColor = Color.BLACK;
     private long mKeyDownStartTime;
     private String mSearchText;
-    private String mUntitledTitle;
     private String mCameraPhotoPath;
 
     // The singleton BookmarkManager
@@ -386,7 +385,6 @@ public abstract class BrowserActivity extends ThemableBrowserActivity implements
         mSearch.setHintTextColor(ThemeUtils.getThemedTextHintColor(mDarkTheme));
         mSearch.setTextColor(mDarkTheme ? Color.WHITE : Color.BLACK);
 
-        mUntitledTitle = getString(R.string.untitled);
         mBackgroundColor = ThemeUtils.getPrimaryColor(this);
         mDeleteIcon = ThemeUtils.getThemedDrawable(this, R.drawable.ic_action_delete, mDarkTheme);
         mRefreshIcon = ThemeUtils.getThemedDrawable(this, R.drawable.ic_action_refresh, mDarkTheme);
@@ -1620,10 +1618,15 @@ public abstract class BrowserActivity extends ThemableBrowserActivity implements
                 @Override
                 public void onItem(@Nullable String item) {
                     Preconditions.checkNonNull(item);
-                    LightningView view = mTabsManager.getCurrentTab();
-                    if (view != null) {
-                        view.loadUrl(item);
+                    for (int i = 0; i < mTabsManager.size(); i++) {
+                        LightningView lightningView = mTabsManager.getTabAtPosition(i);
+                        String url = lightningView != null ? lightningView.getUrl() : null;
+                        if (UrlUtils.isHistoryUrl(url)) {
+                            mPresenter.tabChanged(i);
+                            return;
+                        }
                     }
+                    newTab(item, true);
                 }
             });
     }
